@@ -80,7 +80,7 @@ class DeepDP(nn.Module):
 		recon_loss = torch.sum(recon_loss) / np.prod(xhat.size())
 
 		#policy_loss
-		rewards = 1.0/rewards
+		rewards = 1.0/(rewards + EPSILON)
 		rewards = (rewards - rewards.mean()) / (EPSILON + rewards.std())
 		policy_loss = -categorical.log_prob(assignments)*rewards
 		policy_loss = policy_loss.sum()

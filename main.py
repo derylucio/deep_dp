@@ -16,7 +16,7 @@ training = {
 	'train_loc':"",
 	'sample_size': 16,
 	'log_interval':100,
-	'result_dir': 'gmm_4_all_kl',
+	'result_dir': 'gmm_4_all_kl_2',
 	'model_cfg' : {
 		'input_dim' : 60,
 		'hidden_size' : 16,
@@ -52,21 +52,23 @@ def plot_results(nmis, bincounts, losses, epoch):
 	plt.ylabel('num members')
 	plt.savefig(training['result_dir']  + "/cluster_dist_" + str(epoch) + ".jpg")
 	# plt.show()
-	plt.close()
-	for ind, i in enumerate(zip(*bincounts)):
-		plt.plot(i, label=ind)
-	plt.xlabel("iter")
-	plt.ylabel("num members")
-	plt.legend()
-	plt.savefig(training['result_dir']  + "/cluster_evol_" + str(epoch) + ".jpg")
+	# plt.close()
+	# for ind, i in enumerate(zip(*bincounts)):
+	# 	plt.plot(i, label=ind)
+	# plt.xlabel("iter")
+	# plt.ylabel("num members")
+	# plt.legend()
+	# plt.savefig(training['result_dir']  + "/cluster_evol_" + str(epoch) + ".jpg")
 	# plt.show()
 	plt.close()
 	labels = ['kl_loss', 'recon_loss', 'policy_loss']
+	_, axs = plt.subplots(len(labels), 1)
 	for ind, i in enumerate(zip(*losses)):
-		plt.plot(i, label=labels[ind])
-	plt.xlabel("iter")
-	plt.ylabel("Loss")
-	plt.legend()
+		axs[ind].plot(i, label=labels[ind])
+		axs[ind].set_xlabel("iter")
+		axs[ind].set_ylabel("Loss")
+		axs[ind].legend()
+	plt.tight_layout()
 	plt.savefig(training['result_dir']  + "/losses_" + str(epoch) + ".jpg")
 	# plt.show()
 	plt.close()
