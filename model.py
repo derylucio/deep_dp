@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.distributions import Categorical
 
-EPSILON = 1e-8
+EPSILON = 1e-9
 
 class Encoder(nn.Module):
 	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
@@ -17,7 +17,10 @@ class Encoder(nn.Module):
 									('enc_relu', nn.ReLU()),
 							  ]))
 		self.latent_mean = nn.Linear(hidden_size, hidden_size)
-		self.latent_std = nn.Linear(hidden_size, hidden_size)
+		self.latent_std = nn.Sequential(OrderedDict([
+									('std_fc', nn.Linear(hidden_size, hidden_size)), 
+									('std_relu', nn.ReLU()),
+						  ]))
 
 		self.multinomial_code = nn.Sequential(OrderedDict([
 									('multinom_fc1', nn.Linear(input_dim, input_dim / 2)),
@@ -52,6 +55,7 @@ class Decoder(nn.Module):
 class DeepDP(nn.Module):
 	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
 		super(DeepDP, self).__init__()
+		# self.factor_kl_method = kl_method
 		self.encoder = Encoder(input_dim, hidden_size, num_factors, latent_dim)
 		self.decoder = Decoder(hidden_size, input_dim)
 
@@ -62,13 +66,22 @@ class DeepDP(nn.Module):
 		epsilons = Variable(torch.normal(mean=0.0, std=torch.ones(assignments.size())), requires_grad=False)
 
 		chosen_means = means[assignments]
+		stds += EPSILON
 		chosen_stds = stds[assignments]
 
 		#compute kl term here: #This form is special to the unit normal prior
 		# kl_loss = 1 + torch.log(stds*stds) - means*means - stds*stds 
-		# kl_loss = 0.5*torch.sum(kl_loss)
-		kl_loss = 1 + torch.log(chosen_stds*chosen_stds) - chosen_means*chosen_means - chosen_stds*chosen_stds 
-		kl_loss = 0.5*torch.sum(kl_loss) / np.prod(means.size())
+		# kl_loss = 0.5*torch.sum(kl_loss) / np.prod(means.size())
+
+		kl_normal = 1 + torch.log(chosen_stds*chosen_stds) - chosen_means*chosen_means - chosen_stds*chosen_stds 
+		kl_normal = 0.5*torch.sum(kl_normal) / np.prod(means.size())
+
+		#compute kl term for multinomial. Assume uniform prior
+		kl_multinom = -(multinom*torch.log(multinom.size()[1]*multinom))
+		kl_multinom = kl_multinom.sum()
+
+		
+		kl_loss = kl_multinom + kl_normal
 
 		#now need to reconstruct
 		final_latent = chosen_means + chosen_stds*epsilons

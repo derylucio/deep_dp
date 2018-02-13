@@ -16,7 +16,7 @@ training = {
 	'train_loc':"",
 	'sample_size': 16,
 	'log_interval':100,
-	'result_dir': 'gmm_4_all_kl_2',
+	'result_dir': 'results/for_presentation',
 	'model_cfg' : {
 		'input_dim' : 60,
 		'hidden_size' : 16,
@@ -47,9 +47,9 @@ def plot_results(nmis, bincounts, losses, epoch):
 	plt.savefig(training['result_dir']  + "/nmi_" + str(epoch) + ".jpg")
 	# plt.show()
 	plt.close()
-	plt.plot(bincounts[-1])
+	plt.bar(range(len(bincounts[-1])), bincounts[-1], color='green')
 	plt.xlabel("cluster")
-	plt.ylabel('num members')
+	plt.ylabel('Num Members')
 	plt.savefig(training['result_dir']  + "/cluster_dist_" + str(epoch) + ".jpg")
 	# plt.show()
 	# plt.close()

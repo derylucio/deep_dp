@@ -17,7 +17,7 @@ class DataProvider(object):
 		self.sample_size = sample_size
 		x, y = make_blobs(n_samples=NUM_DATA_POINTS, n_features=dim, centers=NUM_CENTERS, cluster_std=3)
 		self.train_x, self.train_y = x[:int(len(x) * TRAIN_FRAC)],  y[:int(len(x) * TRAIN_FRAC)]
-		self.test_x, self.test_y = x[len(x) - int(len(x) * TRAIN_FRAC):],  y[len(x) - int(len(x) * TRAIN_FRAC):]
+		self.test_x, self.test_y = x[int(len(x) * TRAIN_FRAC):],  y[int(len(x) * TRAIN_FRAC):]
 
 	def data_iterator(self, train=True):
 		x, y = (self.train_x, self.train_y) if train else (self.test_x, self.test_y)
