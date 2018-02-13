@@ -61,44 +61,32 @@ class DeepDP(nn.Module):
 
 	def forward(self, x):
 		means, stds, multinom = self.encoder(x)
-		categorical = Categorical(multinom)
-		assignments = categorical.sample() # We can have an implicit number of samples as being x replicated some times.
-		epsilons = Variable(torch.normal(mean=0.0, std=torch.ones(assignments.size())), requires_grad=False)
-
-		chosen_means = means[assignments]
 		stds += EPSILON
-		chosen_stds = stds[assignments]
 
 		#compute kl term here: #This form is special to the unit normal prior
-		# kl_loss = 1 + torch.log(stds*stds) - means*means - stds*stds 
-		# kl_loss = 0.5*torch.sum(kl_loss) / np.prod(means.size())
-
-		kl_normal = 1 + torch.log(chosen_stds*chosen_stds) - chosen_means*chosen_means - chosen_stds*chosen_stds 
-		kl_normal = 0.5*torch.sum(kl_normal) / np.prod(means.size())
+		kl_normal = 1 + torch.log(stds*stds) - means*means - stds*stds 
+		kl_normal = 0.5*torch.sum(kl_normal)
 
 		#compute kl term for multinomial. Assume uniform prior
 		kl_multinom = -(multinom*torch.log(multinom.size()[1]*multinom))
 		kl_multinom = kl_multinom.sum()
 
-		
-		kl_loss = kl_multinom + kl_normal
+		kl_loss = -(kl_multinom + kl_normal)
+
+		batch_dim, _ = x.size()
+		epsilons = torch.normal(mean=0.0, std=torch.ones(stds.size()))
+		epsilons = Variable(epsilons, requires_grad=False)
 
 		#now need to reconstruct
-		final_latent = chosen_means + chosen_stds*epsilons
+		final_latent = means + stds*epsilons
+		final_latent = multinom.matmul(final_latent)
 		xhat = self.decoder(final_latent)
 		# computing log P(x | z) - same as square loss 
 		delta_x = (x - xhat)
 		recon_loss = torch.sum(delta_x*delta_x, dim=1)
-		rewards = recon_loss.detach() # storing this for re-inforce call !
-		recon_loss = torch.sum(recon_loss) / np.prod(xhat.size())
+		recon_loss = torch.sum(recon_loss) / batch_dim
 
-		#policy_loss
-		rewards = 1.0/(rewards + EPSILON)
-		rewards = (rewards - rewards.mean()) / (EPSILON + rewards.std())
-		policy_loss = -categorical.log_prob(assignments)*rewards
-		policy_loss = policy_loss.sum()
-
-		return kl_loss , recon_loss , policy_loss, multinom[0]
+		return kl_loss , recon_loss, multinom[0]
  
 
 

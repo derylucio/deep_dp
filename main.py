@@ -16,13 +16,13 @@ training = {
 	'train_loc':"",
 	'sample_size': 16,
 	'log_interval':100,
-	'result_dir': 'results/for_presentation',
+	'result_dir': 'results/for_presentation1',
 	'model_cfg' : {
 		'input_dim' : 60,
 		'hidden_size' : 16,
 		'num_factors' : 8, #overestimated value of k
 		'latent_dim' : 32, #size of the latent dimension
-		'kl_weight' : 0.02,
+		'kl_weight' : 0.5,
 	},
 }
 	
@@ -61,7 +61,7 @@ def plot_results(nmis, bincounts, losses, epoch):
 	# plt.savefig(training['result_dir']  + "/cluster_evol_" + str(epoch) + ".jpg")
 	# plt.show()
 	plt.close()
-	labels = ['kl_loss', 'recon_loss', 'policy_loss']
+	labels = ['kl_loss', 'recon_loss', 'total_loss']
 	_, axs = plt.subplots(len(labels), 1)
 	for ind, i in enumerate(zip(*losses)):
 		axs[ind].plot(i, label=labels[ind])
@@ -76,19 +76,20 @@ def plot_results(nmis, bincounts, losses, epoch):
 def evaluate(model, dataprovider):
 	test_iterator = dataprovider.data_iterator(train=False)
 	ys, preds = [], []
-	sum_kl, sum_recon, sum_policy, count = 0, 0, 0, 0
+	sum_kl, sum_recon, count = 0, 0, 0,
 	for test_ind, test_batch in enumerate(test_iterator):
 		test_x, test_y = test_batch
-		kl_loss, recon_loss, policy_loss, multinom = model(test_x)
+		kl_loss, recon_loss, multinom = model(test_x)
 		ys.append(test_y) 
 		preds.append(np.argmax(multinom.data.numpy()))
-		sum_policy += policy_loss
 		sum_kl += kl_loss
 		sum_recon += recon_loss
 		count += 1
 
 	nmi = normalized_mutual_info_score(ys, preds)
-	return nmi, np.bincount(preds), (kl_loss.data[0]/count, recon_loss.data[0]/count, sum_policy.data[0]/count)
+	mean_kl, mean_recon = kl_loss.data[0]/count, recon_loss.data[0]/count
+	mean_loss = mean_kl + mean_recon
+	return nmi, np.bincount(preds), (mean_kl, mean_recon, mean_loss)
 
 
 def run_epoch(model, optimizer, dataprovider, epoch):
@@ -97,8 +98,8 @@ def run_epoch(model, optimizer, dataprovider, epoch):
 	for ind, batch in enumerate(train_iterator):
 		x, y = batch
 		optimizer.zero_grad()
-		kl_loss , recon_loss , policy_loss, assigns = model(x)
-		total_loss = kl_loss + recon_loss + policy_loss
+		kl_loss , recon_loss, assigns = model(x)
+		total_loss = training['model_cfg']['kl_weight']*kl_loss + recon_loss
 		total_loss.backward()
 		optimizer.step()
 		if (ind % training['log_interval'] == 0):
@@ -109,9 +110,9 @@ def run_epoch(model, optimizer, dataprovider, epoch):
 			iter_losses.append(losses)
 			print 'NMI score is nmi ', nmi
 			print 'bincounts - ', hist
-			print 'kl_loss = ', kl_loss
-			print 'recon_loss = ', recon_loss 
-			print 'policy_loss = ', policy_loss
+			print 'kl_loss = ', losses[0]
+			print 'recon_loss = ', losses[1] 
+			print 'total_loss = ', losses[2] 
 			print '\n\n'
 
 	nmi, hist, losses = evaluate(model, dataprovider)
