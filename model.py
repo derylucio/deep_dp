@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.distributions import Categorical
 
-EPSILON = 1e-9
+EPSILON = 1e-8
 
 class Encoder(nn.Module):
 	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
