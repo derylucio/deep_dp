@@ -24,7 +24,7 @@ class Encoder(nn.Module):
 
 		self.multinomial_code = nn.Sequential(OrderedDict([
 									('multinom_fc1', nn.Linear(input_dim, input_dim / 2)),
-									('multinom_relu', nn.ReLU()),
+									('multinom_relu', nn.ELU()),
 									('multinom_fc2', nn.Linear(input_dim / 2, num_factors)),
 									('softmax', nn.Softmax()),
 								]))
@@ -68,7 +68,7 @@ class DeepDP(nn.Module):
 		kl_normal = 0.5*torch.sum(kl_normal)
 
 		#compute kl term for multinomial. Assume uniform prior
-		kl_multinom = -(multinom*torch.log(multinom.size()[1]*multinom))
+		kl_multinom = -(multinom*torch.log(multinom.size()[1]*multinom + EPSILON))
 		kl_multinom = kl_multinom.sum()
 
 		kl_loss = -(kl_multinom + kl_normal)

@@ -10,19 +10,19 @@ import os
 training = {
 	'optimizer': 'adam', 
 	'params' : {
-		'learning_rate' : 1e-4,
+		'learning_rate' : 1e-5,
 	},
-	'epochs' : 5, 
+	'epochs' : 20, 
 	'train_loc':"",
 	'sample_size': 16,
 	'log_interval':100,
-	'result_dir': 'results/for_presentation1',
+	'result_dir': 'results/mnist',
 	'model_cfg' : {
-		'input_dim' : 60,
-		'hidden_size' : 16,
-		'num_factors' : 8, #overestimated value of k
-		'latent_dim' : 32, #size of the latent dimension
-		'kl_weight' : 0.5,
+		'input_dim' : 784,
+		'hidden_size' : 512,
+		'num_factors' : 15, #overestimated value of k
+		'latent_dim' : 256, #size of the latent dimension
+		'kl_weight' : 0.1,
 	},
 }
 	
