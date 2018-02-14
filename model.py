@@ -5,10 +5,32 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.distributions import Categorical
 
-EPSILON = 1e-8
+EPSILON = 1e-9
+
+class MultinomCell(nn.Module):
+	def __init__(self, input_dim, batch_dim, hidden_size, num_factors, gru_cell=True):
+		self.hidden = Variable(torch.rand(batch_dim, num_factors))
+		self.enc_in = nn.Sequential(
+						OrderedDict([
+							('multinom_fc1', nn.Linear(input_dim, hidden_size)),
+							('multinom_relu', nn.ReLU()),
+						]))
+		self.rnn = nn.GRUCell(hidden_size, num_factors) if gru_cell else nn.LSTMCell(hidden_size, num_factors)
+		self.enc_out = nn.Sequential(
+						OrderedDict([
+							('multinom_fc2', nn.Linear(num_factors, num_factors)),
+							('softmax', nn.Softmax())
+						]))
+
+	def forward(x):
+		enc_in = self.enc_in(x)
+		self.hidden = self.rnn(x, self.hidden)
+		enc_out = self.enc_out(self.hidden)
+		return enc_out
+
 
 class Encoder(nn.Module):
-	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
+	def __init__(self, input_dim, batch_dim, hidden_size, num_factors, latent_dim, gru_cell=True):
 		super(Encoder, self).__init__()
 		self.num_factors = num_factors
 		self.latent_factors = Variable(torch.rand(num_factors, latent_dim)) #TODO: change from random uniform (0, 1) to something else ! 
@@ -22,12 +44,7 @@ class Encoder(nn.Module):
 									('std_relu', nn.ReLU()),
 						  ]))
 
-		self.multinomial_code = nn.Sequential(OrderedDict([
-									('multinom_fc1', nn.Linear(input_dim, input_dim / 2)),
-									('multinom_relu', nn.ReLU()),
-									('multinom_fc2', nn.Linear(input_dim / 2, num_factors)),
-									('softmax', nn.Softmax()),
-								]))
+		self.multinomial_code = MultinomCell(input_dim, batch_dim, hidden_size, num_factors, gru_cell=gru_cell)
 
 	def forward (self, x):
 		multinomial = self.multinomial_code(x)
@@ -35,8 +52,6 @@ class Encoder(nn.Module):
 		means = self.latent_mean(latent)
 		stds = self.latent_std(latent)
 		return means, stds, multinomial
-
-
 
 
 class Decoder(nn.Module):
@@ -53,14 +68,14 @@ class Decoder(nn.Module):
 
 
 class DeepDP(nn.Module):
-	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
+	def __init__(self, input_dim, batch_dim, hidden_size, num_factors, latent_dim):
 		super(DeepDP, self).__init__()
-		# self.factor_kl_method = kl_method
-		self.encoder = Encoder(input_dim, hidden_size, num_factors, latent_dim)
+		self.encoder = Encoder(input_dim, batch_dim, hidden_size, num_factors, latent_dim)
 		self.decoder = Decoder(hidden_size, input_dim)
 
-	def forward(self, x):
-		means, stds, multinom = self.encoder(x)
+	def forward(self, pair):
+		x1, x2 = pair
+		means, stds, multinom = self.encoder(x1)
 		stds += EPSILON
 
 		#compute kl term here: #This form is special to the unit normal prior
@@ -80,9 +95,9 @@ class DeepDP(nn.Module):
 		#now need to reconstruct
 		final_latent = means + stds*epsilons
 		final_latent = multinom.matmul(final_latent)
-		xhat = self.decoder(final_latent)
+		x2_hat = self.decoder(final_latent)
 		# computing log P(x | z) - same as square loss 
-		delta_x = (x - xhat)
+		delta_x = (x2 - x2_hat)
 		recon_loss = torch.sum(delta_x*delta_x, dim=1)
 		recon_loss = torch.sum(recon_loss) / batch_dim
 

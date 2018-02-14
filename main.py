@@ -123,7 +123,7 @@ def run_epoch(model, optimizer, dataprovider, epoch):
 
 
 def main():
-	model = DeepDP(training['model_cfg']['input_dim'], training['model_cfg']['hidden_size'], \
+	model = DeepDP(training['model_cfg']['input_dim'], training['sample_size'], training['model_cfg']['hidden_size'], \
 				   training['model_cfg']['num_factors'], training['model_cfg']['latent_dim'])
 
 	dataprovider = DataProvider(training['sample_size'], training['model_cfg']['input_dim'])
