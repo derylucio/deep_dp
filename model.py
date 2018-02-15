@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.distributions import Categorical
+import torchvision.models as models
+from pretrain import VGG
 
 EPSILON = 1e-9
 
@@ -12,7 +14,7 @@ class MultinomCell(nn.Module):
 		self.hidden = Variable(torch.rand(batch_dim, num_factors))
 		self.enc_in = nn.Sequential(
 						OrderedDict([
-							('multinom_fc1', nn.Linear(input_dim, hidden_size)),
+							('multinom_fc1', nn.Linear(feature_dim, hidden_size)),
 							('multinom_relu', nn.ReLU()),
 						]))
 		self.rnn = nn.GRUCell(hidden_size, num_factors) if gru_cell else nn.LSTMCell(hidden_size, num_factors)
@@ -24,15 +26,18 @@ class MultinomCell(nn.Module):
 
 	def forward(x):
 		enc_in = self.enc_in(x)
-		self.hidden = self.rnn(x, self.hidden)
+		self.hidden = self.rnn(enc_in, self.hidden)
 		enc_out = self.enc_out(self.hidden)
 		return enc_out
 
 
 class Encoder(nn.Module):
-	def __init__(self, input_dim, batch_dim, hidden_size, num_factors, latent_dim, gru_cell=True):
+	def __init__(
+			self, input_dim, batch_dim, hidden_size, num_factors, 
+			latent_dim, gru_cell=True):
 		super(Encoder, self).__init__()
 		self.num_factors = num_factors
+		self.image_enc = 
 		self.latent_factors = Variable(torch.rand(num_factors, latent_dim)) #TODO: change from random uniform (0, 1) to something else ! 
 		self.latent_encoder = nn.Sequential(OrderedDict([
 									('enc_fc', nn.Linear(latent_dim, hidden_size)), 
@@ -68,14 +73,35 @@ class Decoder(nn.Module):
 
 
 class DeepDP(nn.Module):
-	def __init__(self, input_dim, batch_dim, hidden_size, num_factors, latent_dim):
+	def __init__(self, feature_dim, batch_dim, hidden_size, num_factors, latent_dim):
 		super(DeepDP, self).__init__()
-		self.encoder = Encoder(input_dim, batch_dim, hidden_size, num_factors, latent_dim)
-		self.decoder = Decoder(hidden_size, input_dim)
+		self.VGG = self.getVGG()
+		self.batch_dim = batch_dim
+		self.encoder = Encoder(feature_dim, batch_dim, hidden_size, num_factors, latent_dim)
+		self.decoder = Decoder(hidden_size, feature_dim)
+		self.prev_x = Variable(torch.zeros(batch_dim, feature_dim), requires_grad=False) 
 
-	def forward(self, pair):
-		x1, x2 = pair
-		means, stds, multinom = self.encoder(x1)
+	def getVGG(self, finetune=False):
+		# This is how to chop of layers ! 
+		my_vgg = VGG()
+		pretrained = models.vgg16(pretrained=True)
+		my_vgg_state = my_vgg.state_dict()
+		pretrained_state = pretrained.state_dict()
+		# filter out the unnecessary layers 
+		pretrained_state = {k:v for k, v in pretrained_state if k in my_vgg_state}
+		my_vgg_state.update(pretrained_state)
+		my_vgg.load_state_dict(pretrained_state)
+		if not finetune:
+			for param in my_vgg.parameters():
+				param.requires_grad = False 
+		return my_vgg
+
+	def rewind(self):
+		self.prev_x = Variable(torch.zeros(batch_dim, feature_dim), requires_grad=False)  
+
+	def forward(self, x):
+		features = self.VGG(x)
+		means, stds, multinom = self.encoder(self.prev_x)
 		stds += EPSILON
 
 		#compute kl term here: #This form is special to the unit normal prior
@@ -88,18 +114,20 @@ class DeepDP(nn.Module):
 
 		kl_loss = -(kl_multinom + kl_normal)
 
-		batch_dim, _ = x.size()
 		epsilons = torch.normal(mean=0.0, std=torch.ones(stds.size()))
 		epsilons = Variable(epsilons, requires_grad=False)
 
 		#now need to reconstruct
 		final_latent = means + stds*epsilons
 		final_latent = multinom.matmul(final_latent)
-		x2_hat = self.decoder(final_latent)
+		xhat = self.decoder(final_latent)
 		# computing log P(x | z) - same as square loss 
-		delta_x = (x2 - x2_hat)
+		delta_x = (features - xhat)
 		recon_loss = torch.sum(delta_x*delta_x, dim=1)
-		recon_loss = torch.sum(recon_loss) / batch_dim
+		recon_loss = torch.sum(recon_loss) / self.batch_dim
+
+		#set to previous
+		self.prev_x = features.detach()
 
 		return kl_loss , recon_loss, multinom[0]
  
