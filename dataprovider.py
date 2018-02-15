@@ -6,6 +6,7 @@ import os
 import glob
 from sklearn.datasets import make_blobs
 from torch.autograd import Variable
+import torch
 import torchvision.transforms as transforms
 from PIL import Image 
 
@@ -47,7 +48,8 @@ class VideoDataProvider(object):
 
 	def data_iterator(self):
 		for vid_folder in self.videos_list:
-			trans_file= vid_folder.split("/")[-1].split("_capture1")[0] + ".txt"
+			vid_name = vid_folder.split("/")[-1].split("_capture1")[0]
+			trans_file = vid_name + ".txt"
 			trans_file = os.path.join(self.transcript_dir, trans_file) 
 			files = np.array(glob.glob(os.path.join(vid_folder, "*")))
 			frame_nums = [int(fname.split("/")[-1].split(".")[0]) for fname in files]
@@ -72,7 +74,9 @@ class VideoDataProvider(object):
 	    		image = self.loader(image)
 	    		image = image.unsqueeze(0)
 	    		image = image.repeat([self.sample_size, 1, 1, 1])
-	    		yield (Variable(image), assign)
-	    	yield (None, None)
+	    		if torch.cuda.is_available():
+	    			image = image.cuda()
+	    		yield (Variable(image), assign, vid_name)
+	    	yield (None, None, vid_name)
 	    	# TODO (ldery): do I need to create a dummy here to mark the end of a video? 
 	    	# TODO (ldery): Is the current approach too slow?

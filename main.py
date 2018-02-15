@@ -85,6 +85,9 @@ def main():
 	model = DeepDP(training['model_cfg']['input_dim'], training['sample_size'], training['model_cfg']['hidden_size'], \
 				   training['model_cfg']['num_factors'], training['model_cfg']['latent_dim'])
 
+	if torch.cuda.is_available():
+		model.cuda()
+
 	dataprovider = VideoDataProvider(ttraining['vid_data_dir'], training['vid_transcript_dir'], raining['sample_size'])
 	optimizer = get_optimizer(model)
 	for i in range(training['epochs']):
