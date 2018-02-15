@@ -15,8 +15,8 @@ training = {
 	'epochs' : 5, 
 	'sample_size': 32,
 	'result_dir': 'results/for_presentation1',
-	'vid_data_dir': '', 
-	'vid_transcript_dir':, "",
+	'vid_data_dir': "/vision/u/ldery/datasets/Jigsaws/Needle_Passing/frames", 
+	'vid_transcript_dir': "/vision/u/ldery/datasets/Jigsaws/Needle_Passing/transcriptions",
 	'model_cfg' : {
 		'input_dim' : 4096,
 		'hidden_size' : 512,
