@@ -1,5 +1,5 @@
 from torch.optim import Adam, SGD, RMSprop  
-from dataprovider import DataProvider
+from dataprovider import VideoDataProvider
 from model import DeepDP
 from plotter import plot, plot_results_vid
 from collections import Counter
@@ -13,16 +13,16 @@ training = {
 		'learning_rate' : 1e-4,
 	},
 	'epochs' : 5, 
-	'train_loc':"",
-	'sample_size': 16,
-	'log_interval':100,
+	'sample_size': 32,
 	'result_dir': 'results/for_presentation1',
+	'vid_data_dir': '', 
+	'vid_transcript_dir':, "",
 	'model_cfg' : {
-		'input_dim' : 60,
-		'hidden_size' : 16,
-		'num_factors' : 8, #overestimated value of k
-		'latent_dim' : 32, #size of the latent dimension
-		'kl_weight' : 0.5,
+		'input_dim' : 4096,
+		'hidden_size' : 512,
+		'num_factors' : 20, #overestimated value of k
+		'latent_dim' : 300, #size of the latent dimension
+		'kl_weight' : 1.0,
 	},
 }
 	
@@ -85,7 +85,7 @@ def main():
 	model = DeepDP(training['model_cfg']['input_dim'], training['sample_size'], training['model_cfg']['hidden_size'], \
 				   training['model_cfg']['num_factors'], training['model_cfg']['latent_dim'])
 
-	dataprovider = DataProvider(training['sample_size'], training['model_cfg']['input_dim'])
+	dataprovider = VideoDataProvider(ttraining['vid_data_dir'], training['vid_transcript_dir'], raining['sample_size'])
 	optimizer = get_optimizer(model)
 	for i in range(training['epochs']):
 		run_epoch(model, optimizer, dataprovider, i)
