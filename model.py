@@ -8,10 +8,11 @@ from torch.distributions import Categorical
 EPSILON = 1e-9
 
 class Encoder(nn.Module):
-	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
+	def __init__(self, input_dim, hidden_size, num_factors, latent_dim, latent_std=1):
 		super(Encoder, self).__init__()
 		self.num_factors = num_factors
-		self.latent_factors = Variable(torch.rand(num_factors, latent_dim)) #TODO: change from random uniform (0, 1) to something else ! 
+		latents = np.random.normal (scale=std, size=(num_factors, latent_dim))
+		self.latent_factors = Variable(torch.FloatTensor (latents)) #TODO: change from random uniform (0, 1) to something else ! 
 		self.latent_encoder = nn.Sequential(OrderedDict([
 									('enc_fc', nn.Linear(latent_dim, hidden_size)), 
 									('enc_relu', nn.ReLU()),
@@ -24,7 +25,7 @@ class Encoder(nn.Module):
 
 		self.multinomial_code = nn.Sequential(OrderedDict([
 									('multinom_fc1', nn.Linear(input_dim, input_dim / 2)),
-									('multinom_relu', nn.ELU()),
+									('multinom_relu', nn.ReLU()),
 									('multinom_fc2', nn.Linear(input_dim / 2, num_factors)),
 									('softmax', nn.Softmax()),
 								]))
@@ -44,8 +45,9 @@ class Decoder(nn.Module):
 		super(Decoder, self).__init__()
 		self.decoder = nn.Sequential(OrderedDict([
 							('decoder_fc1', nn.Linear(hidden_size, output_size)),
-							('decoder_elu', nn.ELU()),
-							('decoder_fc2', nn.Linear(output_size, output_size))
+							('decoder_elu1', nn.ELU()),
+							('decoder_fc2', nn.Linear(output_size, output_size)),
+							('decoder_elu2', nn.ReLU()),
 					   ]))
 
 	def forward (self, x):
@@ -53,10 +55,10 @@ class Decoder(nn.Module):
 
 
 class DeepDP(nn.Module):
-	def __init__(self, input_dim, hidden_size, num_factors, latent_dim):
+	def __init__(self, input_dim, hidden_size, num_factors, latent_dim, latent_std):
 		super(DeepDP, self).__init__()
 		# self.factor_kl_method = kl_method
-		self.encoder = Encoder(input_dim, hidden_size, num_factors, latent_dim)
+		self.encoder = Encoder(input_dim, hidden_size, num_factors, latent_dim, latent_std=latent_std)
 		self.decoder = Decoder(hidden_size, input_dim)
 
 	def forward(self, x):
@@ -86,7 +88,7 @@ class DeepDP(nn.Module):
 		recon_loss = torch.sum(delta_x*delta_x, dim=1)
 		recon_loss = torch.sum(recon_loss) / batch_dim
 
-		return kl_loss , recon_loss, multinom[0]
+		return kl_loss , recon_loss, multinom[0], xhat
  
 
 

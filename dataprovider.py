@@ -13,6 +13,9 @@ NUM_DATA_POINTS = 5000
 NUM_CENTERS = 4
 TRAIN_FRAC = 0.8
 
+RANDOM_SEED = 123
+MAX_PIX_VAL = 255.0
+np.random.seed (RANDOM_SEED)
 
 def image_loader(filename):
     """
@@ -25,7 +28,7 @@ def image_loader(filename):
         image: (Tensor) contains data of the image
     """
     image = Image.open(filename)    # PIL image
-    return np.asarray(image).flatten()
+    return np.asarray(image).flatten() / MAX_PIX_VAL
 
 def load_set(filenames):
     """
@@ -63,7 +66,7 @@ def load_data(data_dir, split):
     return images, labels
 
 class DataProvider(object):
-	def __init__(self, sample_size, dim):
+	def __init__(self, sample_size, dim, num_data_pts = None):
 		super(DataProvider, self).__init__()
 		self.sample_size = sample_size
 		# x, y = make_blobs(n_samples=NUM_DATA_POINTS, n_features=dim, centers=NUM_CENTERS, cluster_std=3)
