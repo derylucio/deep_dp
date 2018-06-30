@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import cPickle as pickle
 import os
  
-RUN = 3
+RUN = 5
 DATASET = 'mnist'
 training = {
 	'optimizer': 'adam', 

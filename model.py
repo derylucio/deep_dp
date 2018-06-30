@@ -11,7 +11,7 @@ class Encoder(nn.Module):
 	def __init__(self, input_dim, hidden_size, num_factors, latent_dim, latent_std=1):
 		super(Encoder, self).__init__()
 		self.num_factors = num_factors
-		latents = np.random.normal (scale=std, size=(num_factors, latent_dim))
+		latents = np.random.normal (scale=latent_std, size=(num_factors, latent_dim))
 		self.latent_factors = Variable(torch.FloatTensor (latents)) #TODO: change from random uniform (0, 1) to something else ! 
 		self.latent_encoder = nn.Sequential(OrderedDict([
 									('enc_fc', nn.Linear(latent_dim, hidden_size)), 
