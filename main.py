@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import cPickle as pickle
 import os
 
-RUN = 2
+RUN = 4
 DATASET = 'blob'
 training = {
 	'optimizer': 'adam', 
@@ -17,7 +17,7 @@ training = {
 	},
 	'epochs' : 5, 
 	'train_loc':"",
-	'sample_size': 16,
+	'sample_size': 1,
 	'log_interval':100,
 	'result_dir': 'results/formulation_1_dataset_{}_run_{}'.format(DATASET, RUN),
 	'model_cfg' : {
