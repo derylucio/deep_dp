@@ -9,7 +9,8 @@ from torch.autograd import Variable
 NUM_DATA_POINTS = 5000
 NUM_CENTERS = 4
 TRAIN_FRAC = 0.8
-
+RANDOM_SEED = 123
+np.random.seed (RANDOM_SEED)
 
 class DataProvider(object):
 	def __init__(self, sample_size, dim):

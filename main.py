@@ -5,8 +5,11 @@ from collections import Counter
 from sklearn.metrics import normalized_mutual_info_score
 import numpy as np 
 import matplotlib.pyplot as plt 
+import cPickle as pickle
 import os
 
+RUN = 2
+DATASET = 'blob'
 training = {
 	'optimizer': 'adam', 
 	'params' : {
@@ -16,7 +19,7 @@ training = {
 	'train_loc':"",
 	'sample_size': 16,
 	'log_interval':100,
-	'result_dir': 'results/for_presentation1',
+	'result_dir': 'results/formulation_1_dataset_{}_run_{}'.format(DATASET, RUN),
 	'model_cfg' : {
 		'input_dim' : 60,
 		'hidden_size' : 16,
@@ -130,6 +133,9 @@ def main():
 	optimizer = get_optimizer(model)
 	for i in range(training['epochs']):
 		run_epoch(model, optimizer, dataprovider, i)
+	meta_file_loc = os.path.join (training['result_dir'], 'metafile.pkl') 
+	with open (meta_file_loc, 'w+') as f:
+		pickle.dump(training, f)
 
 if __name__ == "__main__":
 	main()
