@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import cPickle as pickle
 import os
  
-RUN = 5
+RUN = 8
 DATASET = 'mnist'
 training = {
 	'optimizer': 'adam', 
@@ -25,9 +25,9 @@ training = {
 		'hidden_size' : 512,
 		'num_factors' : 15, #overestimated value of k
 		'latent_dim' : 256, #size of the latent dimension
-		'recon_weight' : 1000.0,
+		'recon_weight' : 1.0,
 		'kl_weight' : 5e-5,
-		'latent_std' :  3,
+		'latent_std' :  1.0,
 	},
 }
 	

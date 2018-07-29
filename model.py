@@ -8,15 +8,19 @@ from torch.distributions import Categorical
 EPSILON = 1e-9
 
 class Encoder(nn.Module):
-	def __init__(self, input_dim, hidden_size, num_factors, latent_dim, latent_std=1):
+	def __init__(self, input_dim, hidden_size, num_factors, latent_dim, latent_std=1, num_layers=1):
 		super(Encoder, self).__init__()
 		self.num_factors = num_factors
 		latents = np.random.normal (scale=latent_std, size=(num_factors, latent_dim))
-		self.latent_factors = Variable(torch.FloatTensor (latents)) #TODO: change from random uniform (0, 1) to something else ! 
-		self.latent_encoder = nn.Sequential(OrderedDict([
-									('enc_fc', nn.Linear(latent_dim, hidden_size)), 
-									('enc_relu', nn.ReLU()),
-							  ]))
+		self.latent_factors = Variable(torch.FloatTensor (latents)) #TODO: change from random uniform (0, 1) to something else !
+		encoder_layers = [('enc_fc', nn.Linear(latent_dim, hidden_size)), 
+							('enc_relu', nn.ReLU())]
+		for i in range(num_layers - 1):
+			this_layer = [('enc_fc_{}'.format(i), nn.Linear(hidden_size, hidden_size)), 
+							('enc_relu_{}'.format(i), nn.ReLU())]
+			encoder_layers.extend(this_layer)
+
+		self.latent_encoder = nn.Sequential(OrderedDict(encoder_layers))
 		self.latent_mean = nn.Linear(hidden_size, hidden_size)
 		self.latent_std = nn.Sequential(OrderedDict([
 									('std_fc', nn.Linear(hidden_size, hidden_size)), 
@@ -89,12 +93,4 @@ class DeepDP(nn.Module):
 		recon_loss = torch.sum(recon_loss) / batch_dim
 
 		return kl_loss , recon_loss, multinom[0], xhat
- 
-
-
-		
-
-
-
-
 
