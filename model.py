@@ -13,26 +13,24 @@ class Encoder(nn.Module):
 		self.num_factors = num_factors
 		latents = np.random.normal (scale=latent_std, size=(num_factors, latent_dim))
 		self.latent_factors = Variable(torch.FloatTensor (latents)) #TODO: change from random uniform (0, 1) to something else !
-		encoder_layers = [('enc_fc', nn.Linear(latent_dim, hidden_size)), 
-							('enc_relu', nn.ReLU())]
-		for i in range(num_layers - 1):
-			this_layer = [('enc_fc_{}'.format(i), nn.Linear(hidden_size, hidden_size)), 
-							('enc_relu_{}'.format(i), nn.ReLU())]
-			encoder_layers.extend(this_layer)
-
-		self.latent_encoder = nn.Sequential(OrderedDict(encoder_layers))
+		self.latent_encoder = nn.Sequential(
+								OrderedDict([('enc_fc', nn.Linear(latent_dim, hidden_size)), 
+											('enc_relu', nn.ReLU())]))
 		self.latent_mean = nn.Linear(hidden_size, hidden_size)
 		self.latent_std = nn.Sequential(OrderedDict([
 									('std_fc', nn.Linear(hidden_size, hidden_size)), 
 									('std_relu', nn.ReLU()),
 						  ]))
-
-		self.multinomial_code = nn.Sequential(OrderedDict([
-									('multinom_fc1', nn.Linear(input_dim, input_dim / 2)),
-									('multinom_relu', nn.ReLU()),
-									('multinom_fc2', nn.Linear(input_dim / 2, num_factors)),
-									('softmax', nn.Softmax()),
-								]))
+		start_h_size = input_dim / 2 if num_layers > 1 else num_factors
+		multinom_layers = [('multinom_fc', nn.Linear(input_dim, start_h_size))]
+		for i in range(num_layers - 1):
+			end_h_size = num_factors if i == num_layers - 2 else start_h_size / 2
+			this_layer = [	('multinom_relu_{}'.format(i), nn.ReLU())
+							('multinom_fc_{}'.format(i), nn.Linear(start_h_size, end_h_size))]
+			start_h_size = end_h_size
+			multinom_layers.extend(this_layer)
+		multinom_layers.append(('softmax', nn.Softmax()))
+		self.multinomial_code = nn.Sequential(OrderedDict(multinom_layers))
 
 	def forward (self, x):
 		multinomial = self.multinomial_code(x)
