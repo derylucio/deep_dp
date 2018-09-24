@@ -3,7 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from torch.distributions import Categorical
+from torch.distributions import OneHotCategorical
+import pdb
 
 EPSILON = 1e-9
 
@@ -19,7 +20,7 @@ class Encoder(nn.Module):
 		self.latent_mean = nn.Linear(hidden_size, hidden_size)
 		self.latent_std = nn.Sequential(OrderedDict([
 									('std_fc', nn.Linear(hidden_size, hidden_size)), 
-									('std_relu', nn.ReLU()),
+									('std_relu', nn.ReLU())
 						  ]))
 		start_h_size = input_dim / 2 if num_layers > 1 else num_factors
 		multinom_layers = [('multinom_fc', nn.Linear(input_dim, start_h_size))]
@@ -62,14 +63,20 @@ class DeepDP(nn.Module):
 		# self.factor_kl_method = kl_method
 		self.encoder = Encoder(input_dim, hidden_size, num_factors, latent_dim, latent_std=latent_std)
 		self.decoder = Decoder(hidden_size, input_dim)
+		self.mvg_beta = 0.5 
+		self.num_factors = num_factors
+		self.mvg, self.mvg_t = np.array([0.0]*num_factors), np.array([1]*num_factors)
 
 	def forward(self, x):
 		means, stds, multinom = self.encoder(x)
+		dist = OneHotCategorical(multinom)
+		one_hot = dist.sample()
 		stds += EPSILON
 
 		#compute kl term here: #This form is special to the unit normal prior
-		kl_normal = 1 + torch.log(stds*stds) - means*means - stds*stds 
-		kl_normal = 0.5*torch.sum(kl_normal)
+		all_kl_normal = 1 + torch.log(stds*stds) - means*means - stds*stds 
+		chosen_kl_normal = one_hot.matmul(all_kl_normal) 
+		kl_normal = 0.5*torch.sum(chosen_kl_normal)
 
 		#compute kl term for multinomial. Assume uniform prior
 		kl_multinom = -(multinom*torch.log(multinom.size()[1]*multinom + EPSILON))
@@ -83,12 +90,29 @@ class DeepDP(nn.Module):
 
 		#now need to reconstruct
 		final_latent = means + stds*epsilons
-		final_latent = multinom.matmul(final_latent)
+		final_latent = one_hot.matmul(final_latent)
 		xhat = self.decoder(final_latent)
 		# computing log P(x | z) - same as square loss 
 		delta_x = (x - xhat)
 		recon_loss = torch.sum(delta_x*delta_x, dim=1)
-		recon_loss = torch.sum(recon_loss) / batch_dim
 
-		return kl_loss , recon_loss, multinom[0], xhat
+		max_ind = torch.argmax(one_hot, dim=1).data.numpy()
+		detached_recon = Variable (recon_loss.data, requires_grad=False)
+		detached_kl = Variable (kl_loss.data, requires_grad=False)
+		# advantage = -self.mvg[max_ind] + detached_recon
+		# advantage = advantage.type_as(detached_recon)
+		advantage = 1.0/((detached_recon + detached_kl)*1e-6)
+		# advantage = advantage / detached_recon # (1/a  - 1/b) / (1/b) need to invese to keep positive
+		encoder_loss = -dist.log_prob(one_hot) * advantage
+
+		#not completely correct implementation
+		det_recon_numpy = (1 - self.mvg_beta)*detached_recon.data.numpy()
+		for ind, val in enumerate(max_ind):
+			self.mvg[val] = self.mvg_beta * self.mvg[val] + (1 - self.mvg_beta)*det_recon_numpy[ind]
+			# self.mvg[ind] /= (1.0 - self.mvg_beta**self.mvg_t[ind])
+			# self.mvg_t[ind] += 1 
+		# print(self.mvg, recon_loss)
+		# print (kl_loss , recon_loss.sum(), encoder_loss.sum())
+		# print(self.mvg, detached_recon.data.numpy())
+		return kl_loss , recon_loss.sum(), multinom, xhat, encoder_loss.sum()
 
